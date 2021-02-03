@@ -239,7 +239,7 @@ public class UsuarioDTO {
 ```
 * Passo 4: Criaçao da classe JwtUtils com os métodos para criar, validar e ler tokens JWT:
 
-**A classe conta com um método de criação de token (generateToken):
+**A classe conta com um método de criação de token (generateToken):**
 ```
 public static String generateToken(User usuario) throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
@@ -336,7 +336,7 @@ Para proteger o método de criaçao de um novo usuário, limitando apenas aos Ad
 
 - [X] Usar no mínimo dois níveis de acesso (Usuário e Admin).
 
-**A aplicação possui acesso tanto pelos Administradores (ROLE_ADMIN), quanto pelos os Usuários Comuns (ROLE_USER). 
+**A aplicação possui acesso tanto pelos Administradores (ROLE_ADMIN), quanto pelos os Usuários Comuns (ROLE_USER).**
 
 ### VUE.JS
 
