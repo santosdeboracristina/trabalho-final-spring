@@ -6,7 +6,9 @@ Para rodar utilize: mvn spring-boot:run
 ## MUST DO: 
 ### Spring Boot + Spring Data JPA
 - [X] Aplicação com acesso ao BD relacional utilizando JPA;
+
 O Spring Data JPA é um framework que nasceu para facilitar a tarefa de persistir dados com JPA.
+
 Arquivo: pom.xml > Adicionando dependência do Spring Data JPA
 ```
 <dependency>
@@ -110,6 +112,11 @@ public Usuario novoUsuario(String nome, String email, String senha, String nomeA
 ### REST
 - [X] Rotas REST com múltiplos métodos (GET, POST, etc);
  ```
+@RestController
+@RequestMapping (value = "/usuario", method = RequestMethod.GET)
+
+OUTRO EXEMPLO:
+
    @PostMapping(value = "/novo") //Define que o método a seguir é um serviço que responde a requisições do tipo POST.
     // O parâmetro "value" define o URI específico desse serviço. Seguindo o exemplo, seria "http://localhost:8080/livros/usuario/novo";
     public Usuario cadastrarUsuario(@RequestBody UsuarioDTO usuario) { //Essa anotação @RequestBody indica que os parametros viram como um Json no body da requisicao.
@@ -164,7 +171,7 @@ public class LoginController {
 ### SEGURANÇA
 - [X] Incluir JWT (token);
 - [X] Proteger recursos utilizando @annotations;
-- [X] Nao anotar método algum no Controller);
+- [X] Nao anotar método algum no Controller;
 - [X] Usar no mínimo dois níveis de acesso (Usuário e Admin).
 
 ### VUE.JS
