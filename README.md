@@ -149,7 +149,8 @@ Note que: Onde utilizei a anotação @ JsonView, foram os atributos que queria s
 * O atributo "nome" foi serializado quando a classe de View escolhida foi View.LivroResumo.
 
 - [X] Habilitar o tratamento de CORS.
-" Cross Origin Resource Sharing é uma especificação de uma tecnologia de navegadores que define meios para um servidor permitir que seus recursos sejam acessados por uma página web de um domínio diferente"
+
+"Cross Origin Resource Sharing é uma especificação de uma tecnologia de navegadores que define meios para um servidor permitir que seus recursos sejam acessados por uma página web de um domínio diferente"
 
 Basicamente impede que uma rota em um servidor seja acessada por uma página (ou JavaScript) de outro servidor, no meu caso, no frontend VUE quando eu tentava acessar a rota "/livro" do backend, sem anotar com @CrossOrigin eu obtia esses erros: 
 
@@ -170,6 +171,7 @@ public class LoginController {
 ```
 ### SEGURANÇA
 - [X] Incluir JWT (token);
+
 "Spring Security não suporta autenticação por JWT (JSON Web Token). Para incluir essa funcionalidade, foi preciso criar, manualmente, formas de gerar e receber esses tokens" - Professor Mineda
 
 * Passo 1. Implementando um serviço que busca informações de usuário para autenticação. Essa busca foi feita no serviço existente UsuarioServiceImpl com a implementação do método loadUserByUsername:
@@ -257,7 +259,7 @@ public static User parseToken(String token) throws JsonParseException, JsonMappi
         return (User) User.builder().username(usuario.getNome()).password("secret")
                 .authorities(usuario.getAutorizacao()).build();
 ```
-* Passo 6: Criação do serviço de login que possa retornar um JWT: 
+* Passo 5: Criação do serviço de login que possa retornar um JWT: 
 **Criamos a classe "LoginController.java", onde injetamos (com @AutoWired) o AuthenticationManager configurado anteriormente:
 
 ```
@@ -282,7 +284,7 @@ public class LoginController {
 ```
 Note que para acessar serviços protegidos, as requisições (seja qual for) têm que ter um token JWT com o nome "Authorization", aí que entra o passo seguinte:
 
-* Passo 7: Criação do filtro Jwt (nome do arquivo: JwtAuthenticationFilter), esse filtro vai interceptar todas as requisições HTTP e lidar com elas antes que cheguem ao seu destino final (no caso, os serviços). Esse filtro faz assim: verifica se a requisição tem um header do tipo Authorization, se houver, o token do header é lido (pelo método generateToken dentro de JwtUtils) e validado. SE FOR VALIDADO, guess what? É feita a autenticação com o resto das informações do usuário. Cool, huh?
+* Passo 6: Criação do filtro Jwt (nome do arquivo: JwtAuthenticationFilter), esse filtro vai interceptar todas as requisições HTTP e lidar com elas antes que cheguem ao seu destino final (no caso, os serviços). Esse filtro faz assim: verifica se a requisição tem um header do tipo Authorization, se houver, o token do header é lido (pelo método generateToken dentro de JwtUtils) e validado. SE FOR VALIDADO, guess what? É feita a autenticação com o resto das informações do usuário. Cool, huh?
 
 ```
 public class JwtAuthenticationFilter extends GenericFilterBean {
@@ -304,10 +306,11 @@ public class JwtAuthenticationFilter extends GenericFilterBean {
             servletResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, t.getMessage());
         }
 ```
-NICE WORK UP TO HERE
 
 - [X] Proteger recursos utilizando @annotations;
+
 No caso do método de adicionar um novo livro, apenas usuários autenticados e que possuam as permissões ROLE_ADMIN ou ROLE_USER podem acessá-lo. 
+
 * @PreAuthorize: 
 ```
                           ...
@@ -328,12 +331,124 @@ Para proteger o método de criaçao de um novo usuário, limitando apenas aos Ad
 ```
 
 - [X] Nao anotar método algum no Controller;
+
 **Todas as anotações de proteçao de método foram anotadas nos serviços.**
+
 - [X] Usar no mínimo dois níveis de acesso (Usuário e Admin).
 
+**A aplicação possui acesso tanto pelos Administradores (ROLE_ADMIN), quanto pelos os Usuários Comuns (ROLE_USER). 
+
 ### VUE.JS
+
 - [X] Consumir rotas criadas no back.
-- [X] Conter: Controle de estado com Vuex;
+
+* No arquivo **Livros.vue**, consumo a rota /livro/novo criada no back > Controller > LivroController.java
+```
+ methods: {
+    cadastrar() {
+      axios
+        .post(
+          '/livro/novo',
+          {
+            titulo: this.titulo,
+            usuario: this.usuario
+          })
+```
+* E a rota de busca também criada no back > Controllers > LivroController.java: 
+
+```
+ atualizar() {
+      axios.get('/livro/busca/' + this.usuario,
+       { headers: { Accept: 'application/json' }
+       })
+```
+
+- [X] Controle de estado com Vuex;
+
+Como exibir o estado dentro do store em nossos componentes Vue? Uma vez que os stores Vuex são reativos, a maneira mais simples de "recuperar" o estado é simplesmente retornar algum estado do store dentro de um dado computado. O Vuex fornece um mecanismo para "injetar" o store em todos os componentes filho do componente raiz com a opção store (habilitada por Vue.use(Vuex)):
+```
+import { mapState } from 'vuex'
+export default {
+  name: 'Home',
+  computed: {
+    ...mapState(['role'])
+  }
+}
+```
 - [X] Várias rotas definidas (router);
+
+Abaixo tenho minhas rotas de Login, Home e Livros. 
+```
+Vue.use(VueRouter);
+
+const routes = [
+  {
+    path: '/',
+    name: 'Home',
+    component: () => import("../views/Home.vue")
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import ('../views/Login.vue')
+  },
+  {
+    path: '/livros',
+    name: 'Livros',
+    component: () => import ('../views/Livros.vue')
+  }
+];
+
+```
 - [X] Tratamento de erro em requisições (axios);
+
+Em uma promessa JavaScript que é resultado de uma requisição AJAX, no then() recebemos respostas HTTP na casa de 2XX (200, 201, 204, 206, etc) e no catch(), recebemos status code na casa de 4XX (400, 404, 422) e 5xx (500, 502, 503), logo as verificações de erro devem ser feitas no catch(). Exemplo:
+
+```
+axios
+        .post(
+          '/livro/novo',
+          {
+            titulo: this.titulo,
+            usuario: this.usuario
+          })
+        .then((res) => {
+          console.log(res);
+          this.titulo = "";
+          this.atualizar();
+        })
+        .catch((error) => console.log(error))
+```
 - [X] E elementos visuais diferentes por nível de acesso.
+
+**Arquivo: Home.vue**, neste arquivo, eu faço uso da diretiva "v-if", ou seja, se o estado do 'role' for ROLE_ADMIN, ou se for ROLE_USER, meu componente html se comportará de forma diferente.
+```
+<template>
+  <div class="text-center">
+    <h1> BOOKWORM </h1>
+  <h2  v-if='role === "[ROLE_ADMIN]"'> BEM VINDO, ADMIN </h2>  
+<img v-if='role === "[ROLE_ADMIN]"' src="https://media.giphy.com/media/gfO1UMUVlM6i1BmKD2/giphy.gif" width="50%" height="50%">
+  <h2  v-if='role === "[ROLE_USER]"'> BEM VINDO, USER</h2> 
+
+  </div>
+</template>
+
+<script>
+import { mapState } from 'vuex'
+export default {
+  name: 'Home',
+  computed: {
+    ...mapState(['role'])
+  }
+}
+</script>
+
+```
+Dada a explicação acima, temos visualmente os seguintes resultados:
+
+**Quando o usuário é autenticado como ADMIN, a home page fica assim:**
+<img src="https://user-images.githubusercontent.com/45819790/106807100-84b38200-6647-11eb-88a1-9bdad6669895.png" alt="Admin" style=max-width:100%>
+
+**Quando o usuário é autenticado como USUÁRIO COMUM, a home page fica assim:**
+<img src="https://user-images.githubusercontent.com/45819790/106807921-7ade4e80-6648-11eb-8fde-dd548fb05cc0.png" alt="UsuárioComum" style=max-width:100%>
+
