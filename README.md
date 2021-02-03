@@ -170,8 +170,165 @@ public class LoginController {
 ```
 ### SEGURANÇA
 - [X] Incluir JWT (token);
+"Spring Security não suporta autenticação por JWT (JSON Web Token). Para incluir essa funcionalidade, foi preciso criar, manualmente, formas de gerar e receber esses tokens" - Professor Mineda
+
+* Passo 1. Implementando um serviço que busca informações de usuário para autenticação. Essa busca foi feita no serviço existente UsuarioServiceImpl com a implementação do método loadUserByUsername:
+```
+@Override
+    public UserDetails loadUserByUsername(String username)
+            throws UsernameNotFoundException {
+        Usuario usuario =
+                usuarioRepo.findTop1ByNomeOrEmail( /*Utilizamos o repositório para buscar um usuário cujo nome ou e-mail
+                 seja igual ao buscado (ambos são aceitos para login) e, caso encontremos...*/
+                        username, username);
+        if(usuario == null) {
+            throw new UsernameNotFoundException("Usuário "
+                    + username
+                    + " não encontrado");
+        }
+        
+```
+
+Utilizo o repositório para buscar um usuário, qual nome ou e-mail seja igual ao buscado (tanto faz para login) e, caso encontremos, geramos uma instância da classe User do Spring Security:
+```
+...
+return User.builder().username(username) //..., geramos uma instância da classe User do Spring Security.
+                .password(usuario.getSenha())
+                .authorities(usuario.getAutorizacoes()
+                        .stream()
+                        .map(Autorizacao::getNome)
+                        .collect(Collectors.toList())
+                        .toArray(new String[usuario
+                                .getAutorizacoes()
+                                .size()]))
+                .build();
+    }
+```
+
+Para que o Spring Security possa reconhecer esse método alteramos a interface UsuarioService, por isso ela estende a interface UserDetailsService.
+
+* Passo 2: Usando @Autowired no atributo declarado com o tipo da interface UserDetailsService, carregando então, a implementação do serviço:
+**Arquivo: Security > SecurityConfiguration.java
+```
+@Autowired
+private UserDetailsService userDetailsService;
+```
+O segundo método configure indica ao Spring Security para utilizar a implementação do método que busca detalhes do usuário tentando autenticar. 
+A tag @Bean disponibiliza, para uso em injeção com @Autowired, uma instância do AuthenticationManager, que realiza o processo de autenticação (verifica se usuário e senha estão corretos):
+```
+@Override
+public void configure(AuthenticationManagerBuilder auth)
+throws Exception {
+auth.userDetailsService(userDetailsService);
+}
+
+@Bean
+@Override
+public AuthenticationManager authenticationManagerBean()
+throws Exception {
+return super.authenticationManagerBean();
+}
+```
+* Passo 3: Incluir o atributo "token" em UsuarioDTO: 
+
+```
+public class UsuarioDTO {
+    private String token;
+```
+* Passo 4: Criaçao da classe JwtUtils com os métodos para criar, validar e ler tokens JWT:
+
+**A classe conta com um método de criação de token (generateToken):
+```
+public static String generateToken(User usuario) throws JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        UsuarioDTO usuarioSemSenha = new UsuarioDTO();
+        usuarioSemSenha.setNome(usuario.getUsername());
+        if (!usuario.getAuthorities().isEmpty()) {
+            usuarioSemSenha.setAutorizacao(usuario.getAuthorities().iterator().next().getAuthority());
+        }
+```
+**E um método para ler e validar tokens (parseToken):**
+```
+public static User parseToken(String token) throws JsonParseException, JsonMappingException, IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        String credentialsJson = Jwts.parser().setSigningKey(KEY).parseClaimsJws(token).getBody().get("userDetails",
+                String.class);
+        UsuarioDTO usuario = mapper.readValue(credentialsJson, UsuarioDTO.class);
+        return (User) User.builder().username(usuario.getNome()).password("secret")
+                .authorities(usuario.getAutorizacao()).build();
+```
+* Passo 6: Criação do serviço de login que possa retornar um JWT: 
+**Criamos a classe "LoginController.java", onde injetamos (com @AutoWired) o AuthenticationManager configurado anteriormente:
+
+```
+public class LoginController {
+    @Autowired
+    private AuthenticationManager auth;
+    @PostMapping(path = "/login")
+    public UsuarioDTO login(@RequestBody UsuarioDTO login)
+            throws JsonProcessingException {
+        String username = login.getNome();
+        if(username == null) {
+            username = login.getEmail();
+        }
+        Authentication credentials = new UsernamePasswordAuthenticationToken(username, login.getSenha());
+        User usuario = (User) auth.authenticate(credentials).getPrincipal();
+        login.setAutorizacao((usuario.getAuthorities().toString()));
+        login.setSenha(null);
+        login.setToken(JwtUtils.generateToken(usuario));
+        return login;
+    }
+}
+```
+Note que para acessar serviços protegidos, as requisições (seja qual for) têm que ter um token JWT com o nome "Authorization", aí que entra o passo seguinte:
+
+* Passo 7: Criação do filtro Jwt (nome do arquivo: JwtAuthenticationFilter), esse filtro vai interceptar todas as requisições HTTP e lidar com elas antes que cheguem ao seu destino final (no caso, os serviços). Esse filtro faz assim: verifica se a requisição tem um header do tipo Authorization, se houver, o token do header é lido (pelo método generateToken dentro de JwtUtils) e validado. SE FOR VALIDADO, guess what? É feita a autenticação com o resto das informações do usuário. Cool, huh?
+
+```
+public class JwtAuthenticationFilter extends GenericFilterBean {
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        try {
+            HttpServletRequest servletRequest = (HttpServletRequest) request;
+            String authorization = servletRequest.getHeader(HttpHeaders.AUTHORIZATION);
+            if (authorization != null) {
+                User usuario = JwtUtils.parseToken(authorization.replaceAll("Bearer ", ""));
+                Authentication credentials = new UsernamePasswordAuthenticationToken(usuario.getUsername(),
+                        usuario.getPassword(), usuario.getAuthorities());
+                SecurityContextHolder.getContext().setAuthentication(credentials);
+            }
+            chain.doFilter(request, response);
+        } catch (Throwable t) {
+            HttpServletResponse servletResponse = (HttpServletResponse) response;
+            servletResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, t.getMessage());
+        }
+```
+NICE WORK UP TO HERE
+
 - [X] Proteger recursos utilizando @annotations;
+No caso do método de adicionar um novo livro, apenas usuários autenticados e que possuam as permissões ROLE_ADMIN ou ROLE_USER podem acessá-lo. 
+* @PreAuthorize: 
+```
+                          ...
+@PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USER')") 
+    public Livro adicionarLivro(String identificadorUsuario, String titulo) {
+        Usuario usuario = usuarioRepo.findTop1ByNomeOrEmail(
+                identificadorUsuario, identificadorUsuario);
+                          ...
+```
+Para proteger o método de criaçao de um novo usuário, limitando apenas aos Administradores (ROLE_ADMIN), anotei o método assim: 
+
+```
+                               ...
+ @PreAuthorize("hasRole('ROLE_ADMIN')")
+    public Usuario novoUsuario(String nome, String email,
+                               String senha, String nomeAutorizacao) {
+                               ...
+```
+
 - [X] Nao anotar método algum no Controller;
+**Todas as anotações de proteçao de método foram anotadas nos serviços.**
 - [X] Usar no mínimo dois níveis de acesso (Usuário e Admin).
 
 ### VUE.JS
