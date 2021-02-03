@@ -354,7 +354,7 @@ Para proteger o método de criaçao de um novo usuário, limitando apenas aos Ad
             usuario: this.usuario
           })
 ```
-* E a rota de busca também criada no back > Controllers > LivroController.java: 
+* E a rota de busca também criada no back > Controller > LivroController.java: 
 
 ```
  atualizar() {
@@ -365,7 +365,14 @@ Para proteger o método de criaçao de um novo usuário, limitando apenas aos Ad
 
 - [X] Controle de estado com Vuex;
 
-Como exibir o estado dentro do store em nossos componentes Vue? Uma vez que os stores Vuex são reativos, a maneira mais simples de "recuperar" o estado é simplesmente retornar algum estado do store dentro de um dado computado. O Vuex fornece um mecanismo para "injetar" o store em todos os componentes filho do componente raiz com a opção store (habilitada por Vue.use(Vuex)):
+Essa é a parte do Vuex que controla o estado da aplicação. Este estado é imutável e único para toda a aplicação. Para começar a implementar o vuex na aplicação basta fazer um import e um use da biblioteca como no exemplo abaixo:
+
+```
+import Vuex from 'vuex'
+
+Vue.use(Vuex)
+```
+COMENTAR O RESTO AQUI
 ```
 import { mapState } from 'vuex'
 export default {
