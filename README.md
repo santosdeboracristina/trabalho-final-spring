@@ -372,7 +372,7 @@ import Vuex from 'vuex'
 
 Vue.use(Vuex)
 ```
-COMENTAR O RESTO AQUI
+EXPLICAR O RESTO AQUI
 ```
 import { mapState } from 'vuex'
 export default {
@@ -445,10 +445,64 @@ import { mapState } from 'vuex'
 export default {
   name: 'Home',
   computed: {
-    ...mapState(['role'])
+    ...mapState(['role']) //Para se acessar um atributo do state a partir de um componente é preciso utilizar atributos computados (mapState)
+    //Inclusive, aqui em computed, eu poderia passar um vetor cheio de atributos que eu gostaria de mapear, por exemplo, se eu quisesse mapear o token e o usuario, eu poderia.
   }
 }
 </script>
+
+```
+**Index.js**
+* State: A seção state de uma store Vuex contém atributos acessíveis a toda a aplicação.
+
+* Actions: as ações são semelhantes às mutações, as diferenças são as seguintes: Em vez de mudar o estado, as ações confirmam (ou fazem commit de) mutações.
+Os manipuladores de ação recebem um objeto context que expõe o mesmo conjunto de métodos/propriedades na instância do store, para que você se possa chamar context.commit para confirmar uma mutação ou acessar o estado através do context.state. Podemos considerar actions como a camada de serviços da aplicação.
+
+* Mutations: Assim como getters, as mutations recebem o state como parâmetro, mas podem receber um parâmetro extra, passado manualmente em sua chamada. Mutations commitam " alterações. Não é possível realizar operações assíncronas (como requisições HTTP) dentro de mutations.
+```
+Vue.use(Vuex)
+
+export default new Vuex.Store({
+  state: {
+    token: null,
+    usuario: null,
+    role: null
+  },
+  mutations: {
+    setUsuario(state, usuario){
+      state.usuario = usuario;
+    },
+    setToken(state, token){
+      state.token = token;
+    },
+    setRole(state, role){
+      state.role = role;
+    },
+    logout(state){
+      state.token = null;
+      state.usuario = null;
+    }
+  },
+  actions: {
+    login(context, { usuario, senha }){
+      axios
+      .post("login", {
+        nome: usuario, 
+        senha: senha
+      })
+      .then(res => {
+        console.log(res);
+        context.commit('setUsuario', usuario);
+        context.commit('setToken', res.data.token);
+        context.commit('setRole', res.data.autorizacao);
+        console.log(res.data.autorizacao)
+        router.push('/');
+      }).catch(error => console.log(error));
+    }
+  },
+  modules: {
+  }
+})
 
 ```
 Dada a explicação acima, temos visualmente os seguintes resultados:
